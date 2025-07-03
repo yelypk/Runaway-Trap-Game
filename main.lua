@@ -1,6 +1,9 @@
 local menu = require("menu")
+local levels = require("levels")
 
 local gameState = "menu"
+local currentLevel = 1
+local levelPassed = false
 
 local player = {}
 local enemies = {}
@@ -19,16 +22,18 @@ local function spawnEnemy(x, y, speed)
         x = x,
         y = y,
         size = 20,
-        speed = 150,
+        speed = 200,
         alive = true
     })
 end
 
 function startGame()
+ local levelData = levels.get(currentLevel)
+
     player = {
         x = 400,
         y = 300,
-        speed = 300,
+        speed = 400,
         size = 20,
         alive = true
     }
@@ -40,16 +45,18 @@ function startGame()
         centerX = math.random(100, 700),
         centerY = math.random(100, 500),
         angle = 0,
-        radius = 150,
+        radius = 200,
         size = 30,
-        speed = 3.7,
+        speed = levelData.trapSpeed,
         x = 0,
         y = 0
     }
 
-    spawnEnemy(100, 100, 80)
-    spawnEnemy(700, 500, 60)
+    trapPathType = levelData.trajectory
 
+    for i = 1, levelData.enemies do
+        spawnEnemy(math.random(0, 780), math.random(0, 580), levelData.enemySpeed)
+    end
     gameState = "playing"
 end
 
@@ -70,6 +77,10 @@ function love.update(dt)
         if love.keyboard.isDown("down") then player.y = player.y + player.speed * dt end
         if love.keyboard.isDown("left") then player.x = player.x - player.speed * dt end
         if love.keyboard.isDown("right") then player.x = player.x + player.speed * dt end
+        
+        --- щоб гравець не виходив за мапу 
+        player.x = math.max(0, math.min(800-player.size, player.x))
+        player.y = math.max(0, math.min(600-player.size, player.y))
 
         for _, enemy in ipairs(enemies) do
             if enemy.alive then
@@ -98,6 +109,19 @@ function love.update(dt)
             player.alive = false
             gameState = "gameover"
         end
+        
+        local allDead = true
+        for _, enemy in ipairs(enemies) do
+          if enemy.alive then allDead = false
+            break
+          end
+        end
+    end
+    
+    if allDead then
+      currentLevel = currentLevel + 1
+      levelPassed = true
+      gameState = "gameover"
     end
 end
 
@@ -143,17 +167,23 @@ function love.keypressed(key)
         if action == "start" then
             startGame()
         end
+    elseif gameState == "gameover" then
+      if key == "return" or key == "kpenter" then
+         if not levelPassed then
+         currentLevel = 1
+        end
+        levelPassed = false
+        startGame()
+      elseif key == "escape" then
+        love.event.quit()
+      end
 
     elseif gameState == "playing" then
         if key == "escape" then
             love.event.quit()
         end
 
-    elseif gameState == "gameover" then
-        if key == "return" or key == "kpenter" then
-            startGame()
-        elseif key == "escape" then
+    elseif key == "escape" then
             love.event.quit()
         end
     end
-end

@@ -1,5 +1,4 @@
 local menu = {}
-
 local titleFont
 local menuFont
 local selected = 1
