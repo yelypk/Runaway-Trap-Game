@@ -110,18 +110,18 @@ function love.update(dt)
             gameState = "gameover"
         end
         
-        local allDead = true
+      local allDead = true
         for _, enemy in ipairs(enemies) do
           if enemy.alive then allDead = false
             break
           end
         end
-    end
     
-    if allDead then
-      currentLevel = currentLevel + 1
-      levelPassed = true
-      gameState = "gameover"
+      if allDead then
+        currentLevel = currentLevel + 1
+       levelPassed = true
+       gameState = "gameover"
+      end
     end
 end
 
@@ -186,4 +186,4 @@ function love.keypressed(key)
     elseif key == "escape" then
             love.event.quit()
         end
-    end
+  end

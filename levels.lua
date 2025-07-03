@@ -3,7 +3,7 @@ local levels = {
     enemies = 2,
     enemySpeed = 200,
     trapSpeed = 3.5,
-    trajectory = "circle"},
+    trajectory = "circle"
   },
   { enemies = 3,
     enemySpeed = 200,
@@ -21,6 +21,7 @@ local levels = {
     trapSpeed = 4.0,
     trajectory = "bounce"
   }
+}
 
 local available = {"circle", "eight", "spiral", "sine", "bounce"}
 
