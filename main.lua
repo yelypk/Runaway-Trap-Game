@@ -1,5 +1,6 @@
 local menu = require("menu")
 local levels = require("levels")
+local walls = require("walls")
 
 local gameState = "menu"
 local currentLevel = 1
@@ -63,6 +64,7 @@ end
 function love.load()
     love.window.setMode(800, 600)
     love.window.setTitle("Fast-Boom!")
+    walls.load()
     menu.load()
 end
 
@@ -72,27 +74,40 @@ function love.update(dt)
 
     elseif gameState == "playing" then
         if not player.alive then return end
+        walls.update(dt)
+
+    local oldX, oldY = player.x, player.y
 
         if love.keyboard.isDown("up") then player.y = player.y - player.speed * dt end
         if love.keyboard.isDown("down") then player.y = player.y + player.speed * dt end
         if love.keyboard.isDown("left") then player.x = player.x - player.speed * dt end
         if love.keyboard.isDown("right") then player.x = player.x + player.speed * dt end
+
+        if walls.checkCollision(player) then
+           player.x, player.y = oldX, oldY
+        end
         
-        --- щоб гравець не виходив за мапу 
         player.x = math.max(0, math.min(800-player.size, player.x))
         player.y = math.max(0, math.min(600-player.size, player.y))
 
-        for _, enemy in ipairs(enemies) do
-            if enemy.alive then
-                local dx = player.x - enemy.x
-                local dy = player.y - enemy.y
-                local dist = math.sqrt(dx * dx + dy * dy)
-                if dist > 0 then
-                    enemy.x = enemy.x + (dx / dist) * enemy.speed * dt
-                    enemy.y = enemy.y + (dy / dist) * enemy.speed * dt
-                end
-            end
-        end
+       for _, enemy in ipairs(enemies) do
+          if enemy.alive then
+              local dx = player.x - enemy.x
+              local dy = player.y - enemy.y
+              local dist = math.sqrt(dx * dx + dy * dy)
+
+              if dist > 0 then
+                  local oldX, oldY = enemy.x, enemy.y
+
+                  enemy.x = enemy.x + (dx / dist) * enemy.speed * dt
+                  enemy.y = enemy.y + (dy / dist) * enemy.speed * dt
+
+                  if walls.checkCollision(enemy) then
+                      enemy.x, enemy.y = oldX, oldY
+                  end
+              end
+          end
+end
 
         trap.angle = trap.angle + trap.speed * dt
         trap.x = trap.centerX + math.cos(trap.angle) * trap.radius
@@ -129,7 +144,8 @@ function love.draw()
     if gameState == "menu" then
         menu.draw()
 
-    elseif gameState == "playing" then
+  elseif gameState == "playing" then
+           walls.draw()
         if player.alive then
             love.graphics.setColor(0, 1, 0)
             love.graphics.rectangle("fill", player.x, player.y, player.size, player.size)
