@@ -1,6 +1,6 @@
-local menu = require("menu")
-local levels = require("levels")
-local walls = require("walls")
+local menu = require("src.menu")
+local levels = require("src.levels")
+local walls = require("src.walls")
 
 local gameState = "menu"
 local currentLevel = 1
@@ -23,13 +23,13 @@ local function spawnEnemy(x, y, speed)
         x = x,
         y = y,
         size = 20,
-        speed = 200,
+        speed = speed,
         alive = true
     })
 end
 
 function startGame()
- local levelData = levels.get(currentLevel)
+    local levelData = levels.get(currentLevel)
 
     player = {
         x = 400,
@@ -58,6 +58,7 @@ function startGame()
     for i = 1, levelData.enemies do
         spawnEnemy(math.random(0, 780), math.random(0, 580), levelData.enemySpeed)
     end
+
     gameState = "playing"
 end
 
@@ -76,7 +77,7 @@ function love.update(dt)
         if not player.alive then return end
         walls.update(dt)
 
-    local oldX, oldY = player.x, player.y
+        local oldX, oldY = player.x, player.y
 
         if love.keyboard.isDown("up") then player.y = player.y - player.speed * dt end
         if love.keyboard.isDown("down") then player.y = player.y + player.speed * dt end
@@ -84,30 +85,30 @@ function love.update(dt)
         if love.keyboard.isDown("right") then player.x = player.x + player.speed * dt end
 
         if walls.checkCollision(player) then
-           player.x, player.y = oldX, oldY
+            player.x, player.y = oldX, oldY
         end
-        
-        player.x = math.max(0, math.min(800-player.size, player.x))
-        player.y = math.max(0, math.min(600-player.size, player.y))
 
-       for _, enemy in ipairs(enemies) do
-          if enemy.alive then
-              local dx = player.x - enemy.x
-              local dy = player.y - enemy.y
-              local dist = math.sqrt(dx * dx + dy * dy)
+        player.x = math.max(0, math.min(800 - player.size, player.x))
+        player.y = math.max(0, math.min(600 - player.size, player.y))
 
-              if dist > 0 then
-                  local oldX, oldY = enemy.x, enemy.y
+        for _, enemy in ipairs(enemies) do
+            if enemy.alive then
+                local dx = player.x - enemy.x
+                local dy = player.y - enemy.y
+                local dist = math.sqrt(dx * dx + dy * dy)
 
-                  enemy.x = enemy.x + (dx / dist) * enemy.speed * dt
-                  enemy.y = enemy.y + (dy / dist) * enemy.speed * dt
+                if dist > 0 then
+                    local oldX, oldY = enemy.x, enemy.y
 
-                  if walls.checkCollision(enemy) then
-                      enemy.x, enemy.y = oldX, oldY
-                  end
-              end
-          end
-end
+                    enemy.x = enemy.x + (dx / dist) * enemy.speed * dt
+                    enemy.y = enemy.y + (dy / dist) * enemy.speed * dt
+
+                    if walls.checkCollision(enemy) then
+                        enemy.x, enemy.y = oldX, oldY
+                    end
+                end
+            end
+        end
 
         trap.angle = trap.angle + trap.speed * dt
         trap.x = trap.centerX + math.cos(trap.angle) * trap.radius
@@ -124,19 +125,20 @@ end
             player.alive = false
             gameState = "gameover"
         end
-        
-      local allDead = true
+
+        local allDead = true
         for _, enemy in ipairs(enemies) do
-          if enemy.alive then allDead = false
-            break
-          end
+            if enemy.alive then
+                allDead = false
+                break
+            end
         end
-    
-      if allDead then
-        currentLevel = currentLevel + 1
-       levelPassed = true
-       gameState = "gameover"
-      end
+
+        if allDead then
+            currentLevel = currentLevel + 1
+            levelPassed = true
+            gameState = "gameover"
+        end
     end
 end
 
@@ -144,8 +146,9 @@ function love.draw()
     if gameState == "menu" then
         menu.draw()
 
-  elseif gameState == "playing" then
-           walls.draw()
+    elseif gameState == "playing" then
+        walls.draw()
+
         if player.alive then
             love.graphics.setColor(0, 1, 0)
             love.graphics.rectangle("fill", player.x, player.y, player.size, player.size)
@@ -184,22 +187,16 @@ function love.keypressed(key)
             startGame()
         end
     elseif gameState == "gameover" then
-      if key == "return" or key == "kpenter" then
-         if not levelPassed then
-         currentLevel = 1
+        if key == "return" or key == "kpenter" then
+            if not levelPassed then
+                currentLevel = 1
+            end
+            levelPassed = false
+            startGame()
+        elseif key == "escape" then
+            love.event.quit()
         end
-        levelPassed = false
-        startGame()
-      elseif key == "escape" then
+    elseif gameState == "playing" and key == "escape" then
         love.event.quit()
-      end
-
-    elseif gameState == "playing" then
-        if key == "escape" then
-            love.event.quit()
-        end
-
-    elseif key == "escape" then
-            love.event.quit()
-        end
-  end
+    end
+end
