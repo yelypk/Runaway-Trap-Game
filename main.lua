@@ -1,15 +1,19 @@
 local menu = require("src.menu")
 local levels = require("src.levels")
 local walls = require("src.walls")
+local Player = require("src.player")
+local Enemy = require("src.enemy")
+local Trap = require("src.trap")
 
 local gameState = "menu"
 local currentLevel = 1
 local levelPassed = false
 
-local player = {}
+local player
 local enemies = {}
-local trap = {}
+local trap
 local enemiesKilled = 0
+local trapPathType = "circle"
 
 local function checkCollision(a, b)
     return a.x < b.x + b.size and
@@ -18,45 +22,16 @@ local function checkCollision(a, b)
            b.y < a.y + a.size
 end
 
-local function spawnEnemy(x, y, speed)
-    table.insert(enemies, {
-        x = x,
-        y = y,
-        size = 20,
-        speed = speed,
-        alive = true
-    })
-end
-
 function startGame()
     local levelData = levels.get(currentLevel)
-
-    player = {
-        x = 400,
-        y = 300,
-        speed = 400,
-        size = 20,
-        alive = true
-    }
-
+    player = Player.create()
     enemies = {}
     enemiesKilled = 0
-
-    trap = {
-        centerX = math.random(100, 700),
-        centerY = math.random(100, 500),
-        angle = 0,
-        radius = 200,
-        size = 30,
-        speed = levelData.trapSpeed,
-        x = 0,
-        y = 0
-    }
-
+    trap = Trap.create(levelData.trapSpeed)
     trapPathType = levelData.trajectory
 
     for i = 1, levelData.enemies do
-        spawnEnemy(math.random(0, 780), math.random(0, 580), levelData.enemySpeed)
+        table.insert(enemies, Enemy.spawn(math.random(0, 780), math.random(0, 580), levelData.enemySpeed))
     end
 
     gameState = "playing"
@@ -72,51 +47,25 @@ end
 function love.update(dt)
     if gameState == "menu" then
         menu.update(dt)
-
     elseif gameState == "playing" then
         if not player.alive then return end
         walls.update(dt)
-
-        local oldX, oldY = player.x, player.y
-
-        if love.keyboard.isDown("up") then player.y = player.y - player.speed * dt end
-        if love.keyboard.isDown("down") then player.y = player.y + player.speed * dt end
-        if love.keyboard.isDown("left") then player.x = player.x - player.speed * dt end
-        if love.keyboard.isDown("right") then player.x = player.x + player.speed * dt end
-
+        local oldX, oldY = Player.update(player, dt)
         if walls.checkCollision(player) then
             player.x, player.y = oldX, oldY
         end
-
         player.x = math.max(0, math.min(800 - player.size, player.x))
         player.y = math.max(0, math.min(600 - player.size, player.y))
 
-        for _, enemy in ipairs(enemies) do
-            if enemy.alive then
-                local dx = player.x - enemy.x
-                local dy = player.y - enemy.y
-                local dist = math.sqrt(dx * dx + dy * dy)
-
-                if dist > 0 then
-                    local oldX, oldY = enemy.x, enemy.y
-
-                    enemy.x = enemy.x + (dx / dist) * enemy.speed * dt
-                    enemy.y = enemy.y + (dy / dist) * enemy.speed * dt
-
-                    if walls.checkCollision(enemy) then
-                        enemy.x, enemy.y = oldX, oldY
-                    end
-                end
-            end
+        for _, e in ipairs(enemies) do
+            Enemy.update(e, dt, player, walls)
         end
 
-        trap.angle = trap.angle + trap.speed * dt
-        trap.x = trap.centerX + math.cos(trap.angle) * trap.radius
-        trap.y = trap.centerY + math.sin(trap.angle) * trap.radius
+        Trap.update(trap, dt)
 
-        for _, enemy in ipairs(enemies) do
-            if enemy.alive and checkCollision(enemy, trap) then
-                enemy.alive = false
+        for _, e in ipairs(enemies) do
+            if e.alive and checkCollision(e, trap) then
+                e.alive = false
                 enemiesKilled = enemiesKilled + 1
             end
         end
@@ -127,13 +76,9 @@ function love.update(dt)
         end
 
         local allDead = true
-        for _, enemy in ipairs(enemies) do
-            if enemy.alive then
-                allDead = false
-                break
-            end
+        for _, e in ipairs(enemies) do
+            if e.alive then allDead = false break end
         end
-
         if allDead then
             currentLevel = currentLevel + 1
             levelPassed = true
@@ -145,34 +90,13 @@ end
 function love.draw()
     if gameState == "menu" then
         menu.draw()
-
     elseif gameState == "playing" then
         walls.draw()
-
-        if player.alive then
-            love.graphics.setColor(0, 1, 0)
-            love.graphics.rectangle("fill", player.x, player.y, player.size, player.size)
-        end
-
-        for _, enemy in ipairs(enemies) do
-            if enemy.alive then
-                love.graphics.setColor(1, 0, 0)
-                love.graphics.rectangle("fill", enemy.x, enemy.y, enemy.size, enemy.size)
-            end
-        end
-
-        love.graphics.setColor(0.6, 0.6, 0.6)
-        local s = trap.size
-        love.graphics.polygon("fill",
-            trap.x, trap.y,
-            trap.x + s, trap.y + 5,
-            trap.x + s - 5, trap.y + s,
-            trap.x, trap.y + s - 5
-        )
-
+        Player.draw(player)
+        for _, e in ipairs(enemies) do Enemy.draw(e) end
+        Trap.draw(trap)
         love.graphics.setColor(1, 1, 1)
         love.graphics.print("Killed: " .. enemiesKilled, 600, 10)
-
     elseif gameState == "gameover" then
         love.graphics.setColor(1, 1, 1)
         love.graphics.printf("Enemies killed: " .. enemiesKilled, 0, 320, 800, "center")
@@ -188,14 +112,10 @@ function love.keypressed(key)
         end
     elseif gameState == "gameover" then
         if key == "return" or key == "kpenter" then
-            if not levelPassed then
-                currentLevel = 1
-            end
+            if not levelPassed then currentLevel = 1 end
             levelPassed = false
             startGame()
-        elseif key == "escape" then
-            love.event.quit()
-        end
+        elseif key == "escape" then love.event.quit() end
     elseif gameState == "playing" and key == "escape" then
         love.event.quit()
     end
