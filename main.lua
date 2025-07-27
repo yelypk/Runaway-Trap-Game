@@ -27,7 +27,7 @@ function startGame()
     player = Player.create()
     enemies = {}
     enemiesKilled = 0
-    trap = Trap.create(levelData.trapSpeed)
+    trap = Trap.create(levelData.trapSpeed, player)
     trapPathType = levelData.trajectory
 
     for i = 1, levelData.enemies do
