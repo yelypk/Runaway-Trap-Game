@@ -1,122 +1,131 @@
-local menu = require("src.menu")
-local levels = require("src.levels")
-local walls = require("src.walls")
-local Player = require("src.player")
-local Enemy = require("src.enemy")
-local Trap = require("src.trap")
 
-local gameState = "menu"
-local currentLevel = 1
-local levelPassed = false
+local components = require("src.components")
+local moveSystem = require("src.systems.movement")
+local drawSystem = require("src.systems.draw")
+local trapSystem = require("src.systems.trap")
+local aiSystem = require("src.systems.enemy_ai")
+local collisionSystem = require("src.systems.collision")
+local wallSystem = require("src.systems.wall_system")
+local levelSystem = require("src.systems.level_system")
+local menuSystem = require("src.systems.menu_system")
 
-local player
-local enemies = {}
-local trap
-local enemiesKilled = 0
-local trapPathType = "circle"
+local enemy_kills = { count = 0 }
+local next_entity_id = 0
+local gameState = { gameOver = false }
+local menuState = { active = true, selected = nil, startGame = false }
 
-local function checkCollision(a, b)
-    return a.x < b.x + b.size and
-           b.x < a.x + a.size and
-           a.y < b.y + b.size and
-           b.y < a.y + a.size
+local function newEntity()
+    next_entity_id = next_entity_id + 1
+    return next_entity_id
 end
 
-function startGame()
-    local levelData = levels.get(currentLevel)
-    player = Player.create()
-    enemies = {}
-    enemiesKilled = 0
-    trap = Trap.create(levelData.trapSpeed, player)
-    trapPathType = levelData.trajectory
+local function spawnPlayer()
+    local id = newEntity()
+    components.position[id] = {x = 100, y = 100}
+    components.radius[id] = 10
+    components.player[id] = true
+end
 
-    for i = 1, levelData.enemies do
-        table.insert(enemies, Enemy.spawn(math.random(0, 780), math.random(0, 580), levelData.enemySpeed))
+local function spawnEnemy(x, y)
+    local id = newEntity()
+    components.position[id] = {x = x, y = y}
+    components.radius[id] = 10
+    components.enemy[id] = true
+    components.killable[id] = true
+end
+
+local function spawnTrap()
+    local id = newEntity()
+    components.position[id] = {x = 400, y = 300}
+    components.trap[id] = {angle = 0, radius = 100, speed = 1.5}
+    components.radius[id] = 5
+end
+
+local function spawnWall()
+    local id = newEntity()
+    components.position[id] = {x = 200, y = 0}
+    components.wall[id] = true
+    components.velocity[id] = {vx = 0, vy = 50}
+end
+
+local function spawnLevel(level)
+    spawnPlayer()
+    for i = 1, 5 do
+        spawnEnemy(200 + i*60, 200 + math.random(-50, 50))
     end
-
-    gameState = "playing"
+    spawnTrap()
+    spawnWall()
+    components.level.current = level
 end
 
 function love.load()
-    love.window.setMode(800, 600)
-    love.window.setTitle("Fast-Boom!")
-    walls.load()
-    menu.load()
+
 end
 
 function love.update(dt)
-    if gameState == "menu" then
-        menu.update(dt)
-    elseif gameState == "playing" then
-        if not player.alive then return end
-        walls.update(dt)
-        local oldX, oldY = Player.update(player, dt)
-        if walls.checkCollision(player) then
-            player.x, player.y = oldX, oldY
-        end
-        player.x = math.max(0, math.min(800 - player.size, player.x))
-        player.y = math.max(0, math.min(600 - player.size, player.y))
-
-        for _, e in ipairs(enemies) do
-            Enemy.update(e, dt, player, walls)
-        end
-
-        Trap.update(trap, dt)
-
-        for _, e in ipairs(enemies) do
-            if e.alive and checkCollision(e, trap) then
-                e.alive = false
-                enemiesKilled = enemiesKilled + 1
-            end
-        end
-
-        if checkCollision(player, trap) then
-            player.alive = false
-            gameState = "gameover"
-        end
-
-        local allDead = true
-        for _, e in ipairs(enemies) do
-            if e.alive then allDead = false break end
-        end
-        if allDead then
-            currentLevel = currentLevel + 1
-            levelPassed = true
-            gameState = "gameover"
-        end
+    if menuState.active then
+        menuSystem(menuState)
+        return
     end
+
+    if menuState.startGame then
+        spawnLevel(menuState.selected)
+        menuState.startGame = false
+    end
+
+    if gameState.gameOver then
+        if love.keyboard.isDown("r") then
+            love.event.quit("restart")
+        elseif love.keyboard.isDown("m") then
+            menuState.active = true
+            next_entity_id = 0
+            for k in pairs(components) do
+                if type(components[k]) == "table" then
+                    components[k] = {}
+                end
+            end
+            components.level = { current = 1 }
+            enemy_kills.count = 0
+            gameState.gameOver = false
+        end
+        return
+    end
+
+    for id in pairs(components.player) do
+        local input = {x = 0, y = 0}
+        if love.keyboard.isDown("a") then input.x = input.x - 1 end
+        if love.keyboard.isDown("d") then input.x = input.x + 1 end
+        if love.keyboard.isDown("w") then input.y = input.y - 1 end
+        if love.keyboard.isDown("s") then input.y = input.y + 1 end
+        local speed = 150
+        components.velocity[id] = {vx = input.x * speed, vy = input.y * speed}
+    end
+
+    aiSystem(components)
+    moveSystem(components, dt)
+    wallSystem(components, dt)
+    trapSystem(components, dt, enemy_kills)
+    collisionSystem(components, gameState)
+    levelSystem(components, enemy_kills)
 end
 
 function love.draw()
-    if gameState == "menu" then
-        menu.draw()
-    elseif gameState == "playing" then
-        walls.draw()
-        Player.draw(player)
-        for _, e in ipairs(enemies) do Enemy.draw(e) end
-        Trap.draw(trap)
+    if menuState.active then
         love.graphics.setColor(1, 1, 1)
-        love.graphics.print("Killed: " .. enemiesKilled, 600, 10)
-    elseif gameState == "gameover" then
-        love.graphics.setColor(1, 1, 1)
-        love.graphics.printf("Enemies killed: " .. enemiesKilled, 0, 320, 800, "center")
-        love.graphics.printf("Press ENTER to restart", 0, 360, 800, "center")
-    end
-end
-
-function love.keypressed(key)
-    if gameState == "menu" then
-        local action = menu.keypressed(key)
-        if action == "start" then
-            startGame()
+        love.graphics.printf("SELECT LEVEL: 1 or 2", 0, 200, 800, "center")
+        if menuState.selected then
+            love.graphics.printf("Selected: " .. menuState.selected, 0, 240, 800, "center")
         end
-    elseif gameState == "gameover" then
-        if key == "return" or key == "kpenter" then
-            if not levelPassed then currentLevel = 1 end
-            levelPassed = false
-            startGame()
-        elseif key == "escape" then love.event.quit() end
-    elseif gameState == "playing" and key == "escape" then
-        love.event.quit()
+        love.graphics.printf("Press ENTER to start", 0, 300, 800, "center")
+        return
+    end
+
+    drawSystem(components)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print("Kills: " .. enemy_kills.count, 10, 10)
+    love.graphics.print("Level: " .. components.level.current, 10, 30)
+    if gameState.gameOver then
+        love.graphics.setColor(1, 0, 0)
+        love.graphics.printf("GAME OVER - Press R to Restart, M for Menu", 0, 250, 800, "center")
     end
 end
