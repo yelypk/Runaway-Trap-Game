@@ -73,7 +73,6 @@ local function buildTiles(label,w,h)
   return tiles
 end
 
--- [ADDED] Собираем пары соседних ячеек по границам (уникальные пары)
 local function collectNeighborPairs(label, w, h)
   local pairsSet = {}
   local function add(a,b)
@@ -82,14 +81,14 @@ local function collectNeighborPairs(label, w, h)
     local key = i .. "_" .. j
     if not pairsSet[key] then pairsSet[key] = { i=i, j=j } end
   end
-  -- горизонтальные границы
+
   for y=1,h do
     for x=1,w-1 do
       local a, b = label[y][x], label[y][x+1]
       if a ~= b then add(a,b) end
     end
   end
-  -- вертикальные границы
+
   for y=1,h-1 do
     for x=1,w do
       local a, b = label[y][x], label[y+1][x]
@@ -101,7 +100,6 @@ local function collectNeighborPairs(label, w, h)
   return list
 end
 
--- [ADDED] Простая реализация Брезенхэма для обхода тайлов на отрезке
 local function bresenham(x0, y0, x1, y1, fn)
   local dx = math.abs(x1 - x0)
   local sx = (x0 < x1) and 1 or -1
@@ -117,7 +115,6 @@ local function bresenham(x0, y0, x1, y1, fn)
   end
 end
 
--- [ADDED] Вырезаем «диск» радиуса r вокруг точки (cx, cy)
 local function carveDisk(tiles, w, h, cx, cy, r)
   local r2 = r * r
   for yy = cy - r, cy + r do
@@ -134,7 +131,6 @@ local function carveDisk(tiles, w, h, cx, cy, r)
   end
 end
 
--- [ADDED] Прорезаем проходы между центрами соседних ячеек
 local function carvePassages(label, seeds, tiles, w, h, passage_width)
   local neighborPairs = collectNeighborPairs(label, w, h)
   local radius = math.max(1, math.floor((passage_width or 3) / 2))
@@ -154,7 +150,7 @@ function VoronoiGen.generate(opts)
   local h = assert(opts.height, "height required")
   local n = opts.seeds or 24
   local relax = opts.relax or 0
-  local passage_width = opts.passage_width or 3  -- [ADDED] ширина прохода в тайлах
+  local passage_width = opts.passage_width or 4 -- ширина прохода в тайлах (!)
 
   local seeds = spawnSeeds(w,h,n)
   local label = labelByNearestSeed(w,h,seeds)
@@ -165,7 +161,6 @@ function VoronoiGen.generate(opts)
 
   local tiles = buildTiles(label,w,h)
 
-  -- [ADDED] после построения стен — прорезаем проходы по центрам соседних ячеек
   carvePassages(label, seeds, tiles, w, h, passage_width)
 
   return { w=w, h=h, seeds=seeds, label=label, tiles=tiles }

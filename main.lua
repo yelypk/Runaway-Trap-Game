@@ -8,6 +8,7 @@ local wallSystem = require("src.systems.wall_system")
 local levelSystem = require("src.systems.level_system")
 local menuSystem = require("src.systems.menu_system")
 local build_map = require("src.systems.build_map")
+local solidCollision = require("src.systems.solid_collision")
 
 local enemy_kills = { count = 0 }
 local next_entity_id = 0
@@ -96,6 +97,7 @@ function love.update(dt)
     trapSystem(components, dt, enemy_kills)
     wallSystem(components, dt)
     moveSystem(components, dt)
+    solidCollision(components)
     collisionSystem(components, enemy_kills, gameState)
     levelSystem(components, enemy_kills)
 end

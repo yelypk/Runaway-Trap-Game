@@ -9,6 +9,9 @@ local function ensure(components)
   components.radius = components.radius or {}
   components.wall = components.wall or {}
   components.map = components.map or {}
+  components.map.tile = 12 
+  components.map.width  = w
+  components.map.height = h
 end
 
 local function newId(components)
