@@ -11,7 +11,7 @@ local build_map = require("src.systems.build_map")
 
 local enemy_kills = { count = 0 }
 local next_entity_id = 0
-local gameState = { gameOver = false }
+local gameState = { gameOver = false } 
 local menuState = { active = true, selected = nil, startGame = false }
 
 local function newEntity()

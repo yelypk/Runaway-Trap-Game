@@ -65,7 +65,6 @@ local function buildTiles(label,w,h)
   for y=1,h do
     for x=1,w do
       local id = label[y][x]
-
       if diff(x+1,y,id) or diff(x-1,y,id) or diff(x,y+1,id) or diff(x,y-1,id) then
         tiles[y][x].wall = true
       end
@@ -74,11 +73,88 @@ local function buildTiles(label,w,h)
   return tiles
 end
 
+-- [ADDED] Собираем пары соседних ячеек по границам (уникальные пары)
+local function collectNeighborPairs(label, w, h)
+  local pairsSet = {}
+  local function add(a,b)
+    if a == b then return end
+    local i, j = math.min(a,b), math.max(a,b)
+    local key = i .. "_" .. j
+    if not pairsSet[key] then pairsSet[key] = { i=i, j=j } end
+  end
+  -- горизонтальные границы
+  for y=1,h do
+    for x=1,w-1 do
+      local a, b = label[y][x], label[y][x+1]
+      if a ~= b then add(a,b) end
+    end
+  end
+  -- вертикальные границы
+  for y=1,h-1 do
+    for x=1,w do
+      local a, b = label[y][x], label[y+1][x]
+      if a ~= b then add(a,b) end
+    end
+  end
+  local list = {}
+  for _,v in pairs(pairsSet) do list[#list+1] = v end
+  return list
+end
+
+-- [ADDED] Простая реализация Брезенхэма для обхода тайлов на отрезке
+local function bresenham(x0, y0, x1, y1, fn)
+  local dx = math.abs(x1 - x0)
+  local sx = (x0 < x1) and 1 or -1
+  local dy = -math.abs(y1 - y0)
+  local sy = (y0 < y1) and 1 or -1
+  local err = dx + dy
+  while true do
+    if fn(x0, y0) == false then break end
+    if x0 == x1 and y0 == y1 then break end
+    local e2 = 2 * err
+    if e2 >= dy then err = err + dy; x0 = x0 + sx end
+    if e2 <= dx then err = err + dx; y0 = y0 + sy end
+  end
+end
+
+-- [ADDED] Вырезаем «диск» радиуса r вокруг точки (cx, cy)
+local function carveDisk(tiles, w, h, cx, cy, r)
+  local r2 = r * r
+  for yy = cy - r, cy + r do
+    if yy >= 1 and yy <= h then
+      for xx = cx - r, cx + r do
+        if xx >= 1 and xx <= w then
+          local dx, dy = xx - cx, yy - cy
+          if dx*dx + dy*dy <= r2 then
+            tiles[yy][xx].wall = false
+          end
+        end
+      end
+    end
+  end
+end
+
+-- [ADDED] Прорезаем проходы между центрами соседних ячеек
+local function carvePassages(label, seeds, tiles, w, h, passage_width)
+  local neighborPairs = collectNeighborPairs(label, w, h)
+  local radius = math.max(1, math.floor((passage_width or 3) / 2))
+  for _, p in ipairs(neighborPairs) do
+    local a, b = seeds[p.i], seeds[p.j]
+    if a and b then
+      bresenham(a.x, a.y, b.x, b.y, function(x, y)
+        carveDisk(tiles, w, h, x, y, radius)
+        return true
+      end)
+    end
+  end
+end
+
 function VoronoiGen.generate(opts)
   local w = assert(opts.width,  "width required")
   local h = assert(opts.height, "height required")
   local n = opts.seeds or 24
   local relax = opts.relax or 0
+  local passage_width = opts.passage_width or 3  -- [ADDED] ширина прохода в тайлах
 
   local seeds = spawnSeeds(w,h,n)
   local label = labelByNearestSeed(w,h,seeds)
@@ -86,8 +162,11 @@ function VoronoiGen.generate(opts)
     lloyd(label,w,h,seeds)
     label = labelByNearestSeed(w,h,seeds)
   end
-  
+
   local tiles = buildTiles(label,w,h)
+
+  -- [ADDED] после построения стен — прорезаем проходы по центрам соседних ячеек
+  carvePassages(label, seeds, tiles, w, h, passage_width)
 
   return { w=w, h=h, seeds=seeds, label=label, tiles=tiles }
 end
