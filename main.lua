@@ -1,4 +1,3 @@
-
 local components = require("src.components")
 local moveSystem = require("src.systems.movement")
 local drawSystem = require("src.systems.draw")
@@ -8,6 +7,7 @@ local collisionSystem = require("src.systems.collision")
 local wallSystem = require("src.systems.wall_system")
 local levelSystem = require("src.systems.level_system")
 local menuSystem = require("src.systems.menu_system")
+local build_map = require("src.systems.build_map")
 
 local enemy_kills = { count = 0 }
 local next_entity_id = 0
@@ -21,109 +21,104 @@ end
 
 local function spawnPlayer()
     local id = newEntity()
-    components.position[id] = {x = 100, y = 100}
-    components.radius[id] = 10
     components.player[id] = true
+    components.position[id] = { x = 200, y = 200 }
+    components.radius[id]   = 8
+    components.velocity[id] = { vx = 0, vy = 0 }
 end
 
 local function spawnEnemy(x, y)
     local id = newEntity()
-    components.position[id] = {x = x, y = y}
-    components.radius[id] = 10
     components.enemy[id] = true
+    components.killable = components.killable or {}
     components.killable[id] = true
+    components.position[id] = { x = x or 300, y = y or 300 }
+    components.radius[id]   = 8
+    components.velocity[id] = { vx = 0, vy = 0 }
 end
 
 local function spawnTrap()
     local id = newEntity()
-    components.position[id] = {x = 400, y = 300}
-    components.trap[id] = {angle = 0, radius = 100, speed = 1.5}
-    components.radius[id] = 5
-end
-
-local function spawnWall()
-    local id = newEntity()
-    components.position[id] = {x = 200, y = 0}
-    components.wall[id] = true
-    components.velocity[id] = {vx = 0, vy = 50}
-end
-
-local function spawnLevel(level)
-    spawnPlayer()
-    for i = 1, 5 do
-        spawnEnemy(200 + i*60, 200 + math.random(-50, 50))
-    end
-    spawnTrap()
-    spawnWall()
-    components.level.current = level
+    components.trap[id] = { speed = 50, path = {}, angle = 0, radius = 60 }
+    components.position[id] = { x = 400, y = 300 }
+    components.radius[id]   = 6
+    components.velocity[id] = { vx = 0, vy = 0 }
 end
 
 function love.load()
-
+    components.level = components.level or { current = 1 }
 end
 
 function love.update(dt)
-    if menuState.active then
-        menuSystem(menuState)
-        return
-    end
+    menuSystem(menuState)
 
     if menuState.startGame then
-        spawnLevel(menuState.selected)
+        package.loaded["src.components"] = nil
+        components = require("src.components")
+        components.level.current = menuState.selected or 1
+
+        enemy_kills.count = 0
+        gameState.gameOver = false
+
+        build_map(components)
+        spawnPlayer()
+        for i = 1, 5 do
+            spawnEnemy(200 + i*60, 200 + math.random(-50, 50))
+        end
+        spawnTrap()
+
         menuState.startGame = false
     end
 
+    if menuState.active then return end
     if gameState.gameOver then
         if love.keyboard.isDown("r") then
-            love.event.quit("restart")
-        elseif love.keyboard.isDown("m") then
             menuState.active = true
-            next_entity_id = 0
-            for k in pairs(components) do
-                if type(components[k]) == "table" then
-                    components[k] = {}
-                end
-            end
-            components.level = { current = 1 }
-            enemy_kills.count = 0
-            gameState.gameOver = false
+            menuState.selected = components.level.current
         end
         return
     end
 
     for id in pairs(components.player) do
-        local input = {x = 0, y = 0}
-        if love.keyboard.isDown("a") then input.x = input.x - 1 end
-        if love.keyboard.isDown("d") then input.x = input.x + 1 end
-        if love.keyboard.isDown("w") then input.y = input.y - 1 end
-        if love.keyboard.isDown("s") then input.y = input.y + 1 end
+        local vx, vy = 0, 0
         local speed = 150
-        components.velocity[id] = {vx = input.x * speed, vy = input.y * speed}
+        if love.keyboard.isDown("a") then vx = vx - speed end
+        if love.keyboard.isDown("d") then vx = vx + speed end
+        if love.keyboard.isDown("w") then vy = vy - speed end
+        if love.keyboard.isDown("s") then vy = vy + speed end
+        components.velocity[id] = components.velocity[id] or { vx = 0, vy = 0 }
+        components.velocity[id].vx = vx
+        components.velocity[id].vy = vy
     end
 
+    -- systems
     aiSystem(components)
-    moveSystem(components, dt)
-    wallSystem(components, dt)
     trapSystem(components, dt, enemy_kills)
-    collisionSystem(components, gameState)
+    wallSystem(components, dt)
+    moveSystem(components, dt)
+    collisionSystem(components, enemy_kills, gameState)
     levelSystem(components, enemy_kills)
 end
 
 function love.draw()
+    love.graphics.clear(0.08, 0.08, 0.10)
+
     if menuState.active then
         love.graphics.setColor(1, 1, 1)
         love.graphics.printf("SELECT LEVEL: 1 or 2", 0, 200, 800, "center")
         if menuState.selected then
-            love.graphics.printf("Selected: " .. menuState.selected, 0, 240, 800, "center")
+            love.graphics.printf("Selected: " .. tostring(menuState.selected), 0, 240, 800, "center")
         end
         love.graphics.printf("Press ENTER to start", 0, 300, 800, "center")
         return
     end
 
     drawSystem(components)
+
     love.graphics.setColor(1, 1, 1)
-    love.graphics.print("Kills: " .. enemy_kills.count, 10, 10)
-    love.graphics.print("Level: " .. components.level.current, 10, 30)
+    love.graphics.print("Kills: " .. tostring(enemy_kills.count), 10, 10)
+    love.graphics.print("Level: " .. tostring(components.level.current or 1), 10, 30)
+
     if gameState.gameOver then
         love.graphics.setColor(1, 0, 0)
         love.graphics.printf("GAME OVER - Press R to Restart, M for Menu", 0, 250, 800, "center")

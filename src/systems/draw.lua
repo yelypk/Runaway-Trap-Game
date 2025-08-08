@@ -2,16 +2,21 @@ return function(components)
     for id, pos in pairs(components.position) do
         local r = components.radius[id]
         if r then
-            if components.player[id] then
-                love.graphics.setColor(0, 1, 0)
-            elseif components.enemy[id] then
-                love.graphics.setColor(1, 0, 0)
-            elseif components.trap[id] then
-                love.graphics.setColor(0, 0, 1)
+            if components.wall[id] then
+                love.graphics.setColor(0.85, 0.85, 0.85)
+                love.graphics.rectangle("fill", pos.x - r, pos.y - r, r * 2, r * 2)
             else
-                love.graphics.setColor(1, 1, 1)
+                if components.player[id] then
+                    love.graphics.setColor(0, 1, 0)
+                elseif components.enemy[id] then
+                    love.graphics.setColor(1, 0, 0)
+                elseif components.trap[id] then
+                    love.graphics.setColor(0, 0, 1)
+                else
+                    love.graphics.setColor(1, 1, 1)
+                end
+                love.graphics.circle("fill", pos.x, pos.y, r)
             end
-            love.graphics.circle("fill", pos.x, pos.y, r)
         end
     end
 
