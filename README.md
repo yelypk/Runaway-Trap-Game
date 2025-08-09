@@ -1,9 +1,19 @@
-# 2D-action "Fast-Boom!"
-Technology stack: Lua and Love2D framework. 
-Applied Practice: ECS software architectural pattern, Voronoi Diagram for levels generation, Data-Oriented Programming paradigm. 
+# 2D Action Game (Love2D + Lua)
+An action game built on the Entity-Component-System (ECS) architecture.
+The player controls a character who evades enemies and lures them into a rotating trap.
+The objective is to eliminate a specified number of enemies while avoiding being caught in the trap oneself. 
 
-The main idea of the game is to lure the pursuers into a trap. The player must push the pursuing enemies into a moving trap while avoiding it themselves. 
+## Requirements
+- [LÖVE](https://love2d.org/) 11.x versions (recommended 11.5)
+- Windows / Linux / macOS
 
-Future implementation:
-● Modification of the trap movement algorithm from level to level.
-● Pixel art.
+---
+
+## Starting the game
+
+### Option 1 — Using the Terminal 
+1. Install Love2D.
+2. Clone or extract the project.
+3. In the terminal, from the project directory, run:
+   ```bash
+   love .
