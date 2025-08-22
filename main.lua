@@ -2,6 +2,7 @@ local components = require("src.components")
 local moveSystem = require("src.systems.movement")
 local drawSystem = require("src.systems.draw")
 local trapSystem = require("src.systems.trap")
+local placement = require("src.systems.placement")
 local aiSystem = require("src.systems.enemy_ai")
 local collisionSystem = require("src.systems.collision")
 local wallSystem = require("src.systems.wall_system")
@@ -40,10 +41,27 @@ end
 
 local function spawnTrap()
     local id = newEntity()
-    components.trap[id] = { speed = 50, path = {}, angle = 0, radius = 60 }
-    components.position[id] = { x = 400, y = 300 }
+
     components.radius[id]   = 6
     components.velocity[id] = { vx = 0, vy = 0 }
+
+    local x, y, goodR = placement.find_trap_spot(components, {
+        minR   = 12,
+        maxR   = 28,
+        margin = 5,
+        tries  = 4000,
+    })
+
+    components.position[id] = { x = x, y = y }
+    components.trap[id] = {
+        -- trap.lua трактує speed як кутову швидкість (рад/с): angle += speed * dt
+        speed  = 3.0, 
+        angle  = 0,
+        radius = goodR, -- радіус ОРБІТИ пастки trap.lua
+        path   = {}
+    }
+
+    return id
 end
 
 function love.load()
