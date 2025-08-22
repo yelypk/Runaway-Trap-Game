@@ -1,19 +1,31 @@
-# 2D Action Game (Love2D + Lua)
-An action game built on the Entity-Component-System (ECS) architecture.
-The player controls a character who evades enemies and lures them into a rotating trap.
-The objective is to eliminate a specified number of enemies while avoiding being caught in the trap oneself. 
+# Runaway Trap 
+A fast-paced 2D action game built with **LÖVE** and **Lua** using a lightweight **Entity–Component–System (ECS)** approach.  
+You play as a green runner, chased by red enemies. Lure them into a rotating trap while staying clear yourself. Touch the trap - and it’s game over.
 
-## Requirements
-- [LÖVE](https://love2d.org/) 11.x versions (recommended 11.5)
-- Windows / Linux / macOS
+![Gameplay](src/images/gameImage.png)
 
 ---
 
-## Starting the game
+## Features
+- **ECS-style architecture:** small, focused components and systems.
+- **Procedural walls** (Voronoi-inspired) with passages.
+- **Chasing enemies** with simple AI.
+- **Rotating trap** that leaves a visible trail; enemies die on contact.
+- **Level progression** and kill counter HUD.
+- **Minimalist visuals** with clear color coding (player = green, enemies = red).
 
-### Option 1 — Using the Terminal 
+---
+
+## Requirements
+- **LÖVE 11.x** (recommended 11.5) — Windows / Linux / macOS
+
+---
+
+## How to Run
+
+### Terminal
 1. Install Love2D.
 2. Clone or extract the project.
-3. In the terminal, from the project directory, run:
+3. From the project folder run:
    ```bash
    love .
