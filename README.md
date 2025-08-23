@@ -1,6 +1,6 @@
 # Runaway Trap 
 A fast-paced 2D action game built with **LÖVE** and **Lua** using a lightweight **Entity–Component–System (ECS)** approach.  
-You play as a green runner, chased by red enemies. Lure them into a rotating trap while staying clear yourself. Touch the trap - and it’s game over.
+You play as a green runner, chased by red enemies. Lure them into a rotating trap. 
 
 ![Gameplay](src/images/gameImage.png)
 
