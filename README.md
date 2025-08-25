@@ -1,5 +1,5 @@
 # Runaway Trap 
-A fast-paced 2D action game built with **LÖVE** and **Lua** using a lightweight **Entity–Component–System (ECS)** approach.  
+A fast-paced 2D action game built with **Love2D** and **Lua** using a lightweight **Entity–Component–System (ECS)** approach.  
 You play as a green runner, chased by red enemies. Lure them into a rotating trap. 
 
 ![Gameplay](src/images/gameImage.png)
@@ -17,7 +17,7 @@ You play as a green runner, chased by red enemies. Lure them into a rotating tra
 ---
 
 ## Requirements
-- **LÖVE 11.x** (recommended 11.5) — Windows / Linux / macOS
+- **Love2D 11.x** (recommended 11.5) — Windows / Linux / macOS
 
 ---
 
