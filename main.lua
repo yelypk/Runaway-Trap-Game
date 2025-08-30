@@ -66,6 +66,9 @@ end
 
 function love.load()
     components.level = components.level or { current = 1 }
+    local icon = love.image.newImageData("src/images/icon.png")
+    love.window.setIcon(icon)
+    love.window.setTitle("Runaway Trap")
 end
 
 function love.update(dt)
