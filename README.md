@@ -11,13 +11,12 @@ You play as a green runner, chased by red enemies. Lure them into a rotating tra
 - **Procedural walls** (Voronoi-inspired) with passages.
 - **Chasing enemies** with simple AI.
 - **Rotating trap** that leaves a visible trail; enemies die on contact.
-- **Level progression** and kill counter HUD.
 - **Minimalist visuals** with clear color coding (player = green, enemies = red).
 
 ---
 
 ## Requirements
-- **Love2D 11.x** (recommended 11.5) — Windows / Linux / macOS
+- **Love2D 11.x** (recommended 11.5) — Windows
 
 ---
 

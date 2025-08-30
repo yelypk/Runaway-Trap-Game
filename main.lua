@@ -25,7 +25,7 @@ local function spawnPlayer()
     local id = newEntity()
     components.player[id] = true
     components.position[id] = { x = 200, y = 200 }
-    components.radius[id]   = 8
+    components.radius[id] = 8
     components.velocity[id] = { vx = 0, vy = 0 }
 end
 
@@ -35,30 +35,30 @@ local function spawnEnemy(x, y)
     components.killable = components.killable or {}
     components.killable[id] = true
     components.position[id] = { x = x or 300, y = y or 300 }
-    components.radius[id]   = 8
+    components.radius[id] = 8
     components.velocity[id] = { vx = 0, vy = 0 }
 end
 
 local function spawnTrap()
     local id = newEntity()
 
-    components.radius[id]   = 6
+    components.radius[id] = 6
     components.velocity[id] = { vx = 0, vy = 0 }
 
     local x, y, goodR = placement.find_trap_spot(components, {
-        minR   = 12,
-        maxR   = 28,
+        minR = 12,
+        maxR = 28,
         margin = 5,
-        tries  = 4000,
+        tries = 4000,
     })
 
     components.position[id] = { x = x, y = y }
     components.trap[id] = {
-        -- trap.lua трактує speed як кутову швидкість (рад/с): angle += speed * dt
-        speed  = 3.0, 
-        angle  = 0,
+        -- trap.lua angle += speed * dt
+        speed = 3.0, 
+        angle = 0,
         radius = goodR, -- радіус ОРБІТИ пастки trap.lua
-        path   = {}
+        path = {}
     }
 
     return id

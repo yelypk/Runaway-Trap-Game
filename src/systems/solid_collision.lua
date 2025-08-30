@@ -36,10 +36,10 @@ local function resolveCircleAABB(pos, vel, r, bx, by, bs)
 end
 
 return function(components)
-    local pos   = components.position or {}
-    local vel   = components.velocity or {}
-    local rad   = components.radius   or {}
-    local walls = components.wall     or {}
+    local pos = components.position or {}
+    local vel = components.velocity or {}
+    local rad = components.radius or {}
+    local walls = components.wall or {}
 
     local tileSize
     for wid in pairs(walls) do

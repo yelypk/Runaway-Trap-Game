@@ -40,7 +40,7 @@ return function(components, dt, enemy_kills)
                     end
                 end
             end
-            trap.path = {} -- сброс візуального сліда
+            trap.path = {} 
         end
     end
 end

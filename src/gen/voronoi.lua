@@ -150,7 +150,7 @@ function VoronoiGen.generate(opts)
   local h = assert(opts.height, "height required")
   local n = opts.seeds or 24
   local relax = opts.relax or 0
-  local passage_width = opts.passage_width or 4 -- ширина прохода в тайлах (!)
+  local passage_width = opts.passage_width or 4 
 
   local seeds = spawnSeeds(w,h,n)
   local label = labelByNearestSeed(w,h,seeds)

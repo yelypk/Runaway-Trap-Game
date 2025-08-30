@@ -1,12 +1,11 @@
--- Підбір вільної точки та радіуса орбіти пастки так, щоб вона не торкалася стін.
 local M = {}
 
 local SQRT2 = 1.41421356237
 
 local function nearestWallClearance(components, x, y)
   local minc = math.huge
-  local pos  = components.position or {}
-  local rad  = components.radius  or {}
+  local pos = components.position or {}
+  local rad = components.radius  or {}
   for id in pairs(components.wall or {}) do
     local p, r = pos[id], rad[id]
     if p and r then
@@ -25,8 +24,8 @@ local function isFreeForCircle(components, x, y, r, margin)
   local W, H = love.graphics.getWidth(), love.graphics.getHeight()
   if x - rr < 0 or y - rr < 0 or x + rr > W or y + rr > H then return false end
 
-  local pos  = components.position or {}
-  local rad  = components.radius  or {}
+  local pos = components.position or {}
+  local rad = components.radius  or {}
   for id in pairs(components.wall or {}) do
     local p, wr = pos[id], rad[id]
     if p and wr then
@@ -42,10 +41,10 @@ end
 
 function M.find_trap_spot(components, opts)
   opts = opts or {}
-  local minR   = opts.minR   or 12     
-  local maxR   = opts.maxR   or 28
+  local minR = opts.minR or 12     
+  local maxR = opts.maxR or 28
   local margin = opts.margin or 5
-  local tries  = opts.tries  or 4000
+  local tries = opts.tries or 4000
 
   local W, H = love.graphics.getWidth(), love.graphics.getHeight()
 
