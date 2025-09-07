@@ -1,46 +1,18 @@
-return function(components, dt, enemy_kills)
-    for id, trap in pairs(components.trap) do
-        local center = components.position[id]
-        trap.angle = (trap.angle + trap.speed * dt) % (2 * math.pi)
-
-        trap.path = trap.path or {}
-        local px = center.x + trap.radius * math.cos(trap.angle)
-        local py = center.y + trap.radius * math.sin(trap.angle)
-        table.insert(trap.path, {x = px, y = py})
-        if #trap.path > 100 then
-            table.remove(trap.path, 1)
-        end
-
-        for eid, pos in pairs(components.position) do
-            if components.enemy[eid] and components.velocity[eid] then
-                local dx = pos.x - center.x
-                local dy = pos.y - center.y
-                local dist2 = dx*dx + dy*dy
-                local inside = dist2 <= trap.radius * trap.radius
-                if inside then
-                    components.velocity[eid].vx = components.velocity[eid].vx * 0.5
-                    components.velocity[eid].vy = components.velocity[eid].vy * 0.5
-                end
-            end
-        end
-
-        if trap.angle < dt * trap.speed then
-            for eid, pos in pairs(components.position) do
-                if components.enemy[eid] and components.killable[eid] then
-                    local dx = pos.x - center.x
-                    local dy = pos.y - center.y
-                    local dist2 = dx*dx + dy*dy
-                    if dist2 <= trap.radius * trap.radius then
-                        components.position[eid] = nil
-                        components.velocity[eid] = nil
-                        components.radius[eid] = nil
-                        components.enemy[eid] = nil
-                        components.killable[eid] = nil
-                        enemy_kills.count = enemy_kills.count + 1
-                    end
-                end
-            end
-            trap.path = {} 
-        end
-    end
+local C = require("src.ecs.components")
+local M = {}
+function M.update(dt, W)
+  local V = W.traps
+  for i = 1, V.size do
+    local id = V.dense[i]
+    local cx, cy = C.trap_cx[id], C.trap_cy[id]
+    local rr = C.trap_rr[id]
+    local ca, sa = C.trap_ca[id], C.trap_sa[id]
+    local ang = C.trap_w[id] * dt
+    local c, s = math.cos(ang), math.sin(ang)
+    ca, sa = ca*c - sa*s, sa*c + ca*s
+    C.trap_ca[id], C.trap_sa[id] = ca, sa
+    C.pos_x[id] = cx + rr * ca
+    C.pos_y[id] = cy + rr * sa
+  end
 end
+return M

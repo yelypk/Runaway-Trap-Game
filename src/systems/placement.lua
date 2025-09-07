@@ -1,3 +1,4 @@
+local C = require("src.ecs.components")
 local M = {}
 
 local SQRT2 = 1.41421356237
@@ -5,7 +6,7 @@ local SQRT2 = 1.41421356237
 local function nearestWallClearance(components, x, y)
   local minc = math.huge
   local pos = components.position or {}
-  local rad = components.radius  or {}
+  local rad = components.radius or {}
   for id in pairs(components.wall or {}) do
     local p, r = pos[id], rad[id]
     if p and r then
@@ -25,7 +26,7 @@ local function isFreeForCircle(components, x, y, r, margin)
   if x - rr < 0 or y - rr < 0 or x + rr > W or y + rr > H then return false end
 
   local pos = components.position or {}
-  local rad = components.radius  or {}
+  local rad = components.radius or {}
   for id in pairs(components.wall or {}) do
     local p, wr = pos[id], rad[id]
     if p and wr then

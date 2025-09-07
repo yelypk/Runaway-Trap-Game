@@ -1,43 +1,24 @@
-local VoronoiGen = require("src.gen.voronoi")
+local CFG = require("config")
+local VOR = require("src.gen.voronoi")
 
-local tileSize = 12
-local gridW, gridH = 96, 64
+local M = {}
 
-local function ensure(components)
-  components.position = components.position or {}
-  components.velocity = components.velocity or {}
-  components.radius = components.radius or {}
-  components.wall = components.wall or {}
-  components.map = components.map or {}
-  components.map.tile = 12 
-  components.map.width  = w
-  components.map.height = h
-end
+-- return gen (grid, w, h)
+function M.build_voronoi_level(W, opts)
+  local tile = (opts and opts.tile) or CFG.level_tile
+  local gw = math.floor(CFG.width  / tile)
+  local gh = math.floor(CFG.height / tile)
 
-local function newId(components)
-  components._nextId = (components._nextId or 0) + 1
-  return components._nextId
-end
-
-return function(components)
-  ensure(components)
-  if components.map.built then return end
-
-  local gen = VoronoiGen.generate{
-    width = gridW, height = gridH, seeds = 28, relax = 1
+  local gen = VOR.generate{
+    width = gw, height = gh,
+    detail = (opts and opts.detail) or 0.35,  
+    relax  = (opts and opts.relax)  or 1,
+    thicken = (opts and opts.thicken) or 1, 
+    passage_width = (opts and opts.passage_width) or 3,
   }
 
-  for y=1,gen.h do
-    for x=1,gen.w do
-      if gen.tiles[y][x].wall then
-        local id = newId(components)
-        components.wall[id] = true
-        components.position[id] = { x = (x-0.5)*tileSize, y = (y-0.5)*tileSize }
-        components.velocity[id] = { vx = 0, vy = 0 }
-        components.radius[id] = tileSize/2
-      end
-    end
-  end
-
-  components.map.built = true
+  W.spawn_walls_from_grid(gen.grid, tile)
+  return gen, tile
 end
+
+return M

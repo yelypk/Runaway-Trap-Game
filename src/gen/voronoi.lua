@@ -1,169 +1,172 @@
-local VoronoiGen = {}
+local M = {}
 
-local function rnd(a,b) return love.math.random(a,b) end
-
-local function dist2(ax,ay,bx,by)
-  local dx, dy = ax-bx, ay-by
-  return dx*dx + dy*dy
-end
-
-local function spawnSeeds(w,h,n)
-  local seeds = {}
-  for i=1,n do
-    seeds[i] = { x = rnd(2, w-1), y = rnd(2, h-1), id = i }
-  end
-  return seeds
-end
-
-local function labelByNearestSeed(w,h,seeds)
-  local label = {}
-  for y=1,h do
-    label[y] = {}
-    for x=1,w do
-      local bestId, bestD2 = -1, math.huge
-      for i,s in ipairs(seeds) do
-        local d2 = dist2(x,y,s.x,s.y)
-        if d2 < bestD2 then bestD2 = d2; bestId = i end
+local function rnd(a, b) return love.math.random(a, b) end
+-- finds the nearest and second nearest seed
+local function nearest_labels(w, h, sx, sy, n)
+  local lab = {}
+  for y = 1, h do
+    local row = {}
+    for x = 1, w do
+      local best1, best2, i1 = math.huge, math.huge, 1
+      for i = 1, n do
+        local dx, dy = x - sx[i], y - sy[i]
+        local d = dx*dx + dy*dy
+        if d < best1 then best2 = best1; best1 = d; i1 = i
+        elseif d < best2 then best2 = d end
       end
-      label[y][x] = bestId
+      row[x] = i1
     end
+    lab[y] = row
   end
-  return label
+  return lab
 end
 
-local function lloyd(label,w,h,seeds)
-  local acc, cnt = {}, {}
-  for i=1,#seeds do acc[i]={x=0,y=0}; cnt[i]=0 end
-  for y=1,h do
-    for x=1,w do
-      local id = label[y][x]
-      acc[id].x = acc[id].x + x
-      acc[id].y = acc[id].y + y
-      cnt[id] = cnt[id] + 1
+local function lloyd(label, w, h, sx, sy, n)
+  local accx, accy, cnt = {}, {}, {}
+  for i = 1, n do accx[i]=0; accy[i]=0; cnt[i]=0 end
+  for y = 1, h do
+    local row = label[y]
+    for x = 1, w do
+      local id = row[x]
+      accx[id] = accx[id] + x; accy[id] = accy[id] + y; cnt[id] = cnt[id] + 1
     end
   end
-  for i,s in ipairs(seeds) do
+  for i = 1, n do
     if cnt[i] > 0 then
-      s.x = math.floor(acc[i].x / cnt[i] + 0.5)
-      s.y = math.floor(acc[i].y / cnt[i] + 0.5)
+      sx[i] = math.floor(accx[i] / cnt[i] + 0.5)
+      sy[i] = math.floor(accy[i] / cnt[i] + 0.5)
     end
   end
 end
 
-local function buildTiles(label,w,h)
-  local tiles = {}
-  for y=1,h do
-    tiles[y] = {}
-    for x=1,w do
-      tiles[y][x] = { wall=false }
-    end
+local function boundary_grid(label, w, h)
+  local g = {}
+  for y = 1, h do
+    local row = {}
+    for x = 1, w do row[x] = 0 end
+    g[y] = row
   end
-  local function diff(x,y,id)
-    if x<1 or x> w or y<1 or y>h then return false end
-    return label[y][x] ~= id
+  local function diff(x, y, id)
+    return x < 1 or x > w or y < 1 or y > h or label[y][x] ~= id
   end
-  for y=1,h do
-    for x=1,w do
+  for y = 1, h do
+    for x = 1, w do
       local id = label[y][x]
-      if diff(x+1,y,id) or diff(x-1,y,id) or diff(x,y+1,id) or diff(x,y-1,id) then
-        tiles[y][x].wall = true
+      if diff(x+1,y,id) or diff(x-1,y,id)
+         or diff(x,y+1,id) or diff(x,y-1,id)
+         or diff(x+1,y+1,id) or diff(x-1,y-1,id)
+         or diff(x+1,y-1,id) or diff(x-1,y+1,id) then
+        g[y][x] = 1
       end
     end
   end
-  return tiles
+  return g
 end
 
-local function collectNeighborPairs(label, w, h)
-  local pairsSet = {}
-  local function add(a,b)
+-- thickening of walls (dilate) 1-2 passes
+local function dilate(grid, w, h, passes)
+  for _=1,(passes or 0) do
+    local src = grid
+    local dst = {}
+    for y = 1, h do
+      local row = {}
+      for x = 1, w do
+        local s = 0
+        for oy=-1,1 do
+          for ox=-1,1 do
+            local yy, xx = y+oy, x+ox
+            if yy>=1 and yy<=h and xx>=1 and xx<=w and src[yy][xx]==1 then s=1; break end
+          end
+          if s==1 then break end
+        end
+        row[x] = s
+      end
+      dst[y] = row
+    end
+    grid = dst
+  end
+  return grid
+end
+
+-- single "gates" between neighbors to ensure passability
+local function carve_local_passages(label, w, h, sx, sy, n, hole_r, grid)
+  local seen = {}
+  local function mark_pair(a, b)
     if a == b then return end
-    local i, j = math.min(a,b), math.max(a,b)
-    local key = i .. "_" .. j
-    if not pairsSet[key] then pairsSet[key] = { i=i, j=j } end
+    if a > b then a, b = b, a end
+    seen[a .. ":" .. b] = true
   end
-
-  for y=1,h do
-    for x=1,w-1 do
+  for y = 1, h do
+    for x = 1, w-1 do
       local a, b = label[y][x], label[y][x+1]
-      if a ~= b then add(a,b) end
+      if a ~= b then mark_pair(a, b) end
     end
   end
-
-  for y=1,h-1 do
-    for x=1,w do
+  for y = 1, h-1 do
+    for x = 1, w do
       local a, b = label[y][x], label[y+1][x]
-      if a ~= b then add(a,b) end
+      if a ~= b then mark_pair(a, b) end
     end
   end
-  local list = {}
-  for _,v in pairs(pairsSet) do list[#list+1] = v end
-  return list
-end
 
-local function bresenham(x0, y0, x1, y1, fn)
-  local dx = math.abs(x1 - x0)
-  local sx = (x0 < x1) and 1 or -1
-  local dy = -math.abs(y1 - y0)
-  local sy = (y0 < y1) and 1 or -1
-  local err = dx + dy
-  while true do
-    if fn(x0, y0) == false then break end
-    if x0 == x1 and y0 == y1 then break end
-    local e2 = 2 * err
-    if e2 >= dy then err = err + dy; x0 = x0 + sx end
-    if e2 <= dx then err = err + dx; y0 = y0 + sy end
-  end
-end
-
-local function carveDisk(tiles, w, h, cx, cy, r)
-  local r2 = r * r
-  for yy = cy - r, cy + r do
-    if yy >= 1 and yy <= h then
-      for xx = cx - r, cx + r do
-        if xx >= 1 and xx <= w then
-          local dx, dy = xx - cx, yy - cy
-          if dx*dx + dy*dy <= r2 then
-            tiles[yy][xx].wall = false
+  local r = math.max(1, math.floor((hole_r or 3)/2))
+  local r2 = r*r
+  local function carve_disk(cx, cy)
+    for yy = cy - r, cy + r do
+      if yy >= 1 and yy <= h then
+        for xx = cx - r, cx + r do
+          if xx >= 1 and xx <= w then
+            local dx, dy = xx - cx, yy - cy
+            if dx*dx + dy*dy <= r2 then grid[yy][xx] = 0 end
           end
         end
       end
     end
   end
-end
 
-local function carvePassages(label, seeds, tiles, w, h, passage_width)
-  local neighborPairs = collectNeighborPairs(label, w, h)
-  local radius = math.max(1, math.floor((passage_width or 3) / 2))
-  for _, p in ipairs(neighborPairs) do
-    local a, b = seeds[p.i], seeds[p.j]
-    if a and b then
-      bresenham(a.x, a.y, b.x, b.y, function(x, y)
-        carveDisk(tiles, w, h, x, y, radius)
-        return true
-      end)
-    end
+  for key in pairs(seen) do
+    local i, j = key:match("(%d+):(%d+)")
+    i, j = tonumber(i), tonumber(j)
+    local mx = math.floor((sx[i] + sx[j]) * 0.5 + 0.5)
+    local my = math.floor((sy[i] + sy[j]) * 0.5 + 0.5)
+-- let's move it a little randomly so that not all the holes are on a straight line
+    mx = math.max(2, math.min(w-1, mx + rnd(-1,1)))
+    my = math.max(2, math.min(h-1, my + rnd(-1,1)))
+    carve_disk(mx, my)
   end
 end
 
-function VoronoiGen.generate(opts)
+function M.generate(opts)
   local w = assert(opts.width,  "width required")
   local h = assert(opts.height, "height required")
-  local n = opts.seeds or 24
-  local relax = opts.relax or 0
-  local passage_width = opts.passage_width or 4 
+  local cells = w * h
+  local seeds = opts.seeds or math.max(24, math.floor(cells * (opts.detail or 0.35)))
+  local relax = opts.relax or 1
+  local thicken = opts.thicken or 1   
+  local hole = opts.passage_width or 3   
 
-  local seeds = spawnSeeds(w,h,n)
-  local label = labelByNearestSeed(w,h,seeds)
-  for _=1,relax do
-    lloyd(label,w,h,seeds)
-    label = labelByNearestSeed(w,h,seeds)
+  -- seeds (SoA)
+  local sx, sy = {}, {}
+  for i = 1, seeds do sx[i] = rnd(2, w-1); sy[i] = rnd(2, h-1) end
+
+  local label = nearest_labels(w, h, sx, sy, seeds)
+  for _ = 1, relax do
+    lloyd(label, w, h, sx, sy, seeds)
+    label = nearest_labels(w, h, sx, sy, seeds)
   end
 
-  local tiles = buildTiles(label,w,h)
+  local grid = boundary_grid(label, w, h)
+  grid = dilate(grid, w, h, thicken)
 
-  carvePassages(label, seeds, tiles, w, h, passage_width)
+  -- perimeter frame
+  for x=1,w do grid[1][x]=1; grid[h][x]=1 end
+  for y=1,h do grid[y][1]=1; grid[y][w]=1 end
+  -- local "gates" between neighbors
+  carve_local_passages(label, w, h, sx, sy, seeds, hole, grid)
 
-  return { w=w, h=h, seeds=seeds, label=label, tiles=tiles }
+  return { w = w, h = h, grid = grid }
 end
 
-return VoronoiGen
+return M
+ 
+

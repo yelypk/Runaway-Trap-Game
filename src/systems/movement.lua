@@ -1,9 +1,11 @@
-return function(components, dt)
-    for id, vel in pairs(components.velocity) do
-        local pos = components.position[id]
-        if pos then
-            pos.x = pos.x + vel.vx * dt
-            pos.y = pos.y + vel.vy * dt
-        end
-    end
+local C = require("src.ecs.components")
+local M = {}
+function M.update(dt, W)
+  local V = W.movers
+  for i = 1, V.size do
+    local id = V.dense[i]
+    C.pos_x[id] = C.pos_x[id] + C.vel_x[id] * dt
+    C.pos_y[id] = C.pos_y[id] + C.vel_y[id] * dt
+  end
 end
+return M
